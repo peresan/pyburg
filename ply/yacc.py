@@ -289,7 +289,7 @@ class LRParser:
 
         # If no lexer was given, we will try to use the lex module
         if not lexer:
-            from . import lex
+            import lex
             lexer = lex.lexer
 
         # Set up the lexer and parser objects on pslice
@@ -2183,7 +2183,12 @@ class ParserReflect(object):
     # Get all p_functions from the grammar
     def get_pfunctions(self):
         p_functions = []
+        lineno = 0
         for name, item in self.pdict.items():
+            lineno += 1
+            if ':' in name:
+                p_functions.append((lineno, item, item.__name__, name))
+                continue
             if not name.startswith('p_') or name == 'p_error':
                 continue
             if isinstance(item, (types.FunctionType, types.MethodType)):
@@ -2211,8 +2216,12 @@ class ParserReflect(object):
             return
 
         for line, module, name, doc in self.pfuncs:
-            file = inspect.getsourcefile(module)
-            func = self.pdict[name]
+            if isinstance(module, (types.FunctionType, types.MethodType)):
+                file = "dict"
+                func = module
+            else:
+                file = inspect.getsourcefile(module)
+                func = self.pdict[name]
             if isinstance(func, types.MethodType):
                 reqargs = 2
             else:
@@ -2223,7 +2232,7 @@ class ParserReflect(object):
             elif func.__code__.co_argcount < reqargs:
                 self.log.error('%s:%d: Rule %r requires an argument', file, line, func.__name__)
                 self.error = True
-            elif not func.__doc__:
+            elif not func.__doc__ and file != "dict":
                 self.log.warning('%s:%d: No documentation string specified in function %r (ignored)',
                                  file, line, func.__name__)
             else:
@@ -2279,7 +2288,8 @@ def yacc(*, debug=yaccdebug, module=None, start=None,
         errorlog = PlyLogger(sys.stderr)
 
     # Get the module dictionary used for the parser
-    if module:
+    if type(module) == dict: pdict = module
+    elif module:
         _items = [(k, getattr(module, k)) for k in dir(module)]
         pdict = dict(_items)
         # If no __file__ or __package__ attributes are available, try to obtain them

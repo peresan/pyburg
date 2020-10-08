@@ -33,12 +33,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 
-import re
-import sys
-import types
-import copy
-import os
-import inspect
+import re, sys, types, copy, os, inspect
 
 # This tuple contains acceptable string types
 StringTypes = (str, bytes)
@@ -515,7 +510,8 @@ class LexerReflect(object):
     # categories (functions, strings, error functions, and ignore characters)
 
     def get_rules(self):
-        tsymbols = [f for f in self.ldict if f[:2] == 't_']
+        tsymbols = [(f.__doc__, f) for f in self.ldict if f[:2] == 't_'] # reflect
+        tsymbols += [(f, self.ldict[f]) for f in self.ldict if ':' in f] # dict
 
         # Now build up a list of functions and a list of strings
         self.toknames = {}        # Mapping of symbols to token names
@@ -736,7 +732,8 @@ def lex(*, module=None, object=None, debug=False,
         module = object
 
     # Get the module dictionary used for the parser
-    if module:
+    if type(module) == dict: ldict = module
+    elif module:
         _items = [(k, getattr(module, k)) for k in dir(module)]
         ldict = dict(_items)
         # If no __file__ attribute is available, try to obtain it from the __module__ instead
